@@ -135,7 +135,7 @@ button{cursor:pointer}
 .theme-ppt .page{min-width:1000px;width:max-content;min-height:562px;margin:22px 26px 14px;background:#fff;box-shadow:0 0 0 1px #cfcfcf,0 2px 8px rgba(0,0,0,.14);padding:24px 36px}
 .pnotes{display:none}
 .theme-ppt .pnotes{display:block;width:1000px;margin:0 26px 30px;background:#fff;border:1px solid #d0d0d0;padding:10px 14px;color:#444;line-height:1.6;min-height:84px}
-.pnotes>b{color:#888;font-weight:400;display:block;margin-bottom:4px}
+.pnotes .nl{color:#888;display:block;margin-bottom:4px}
 .thumbs{user-select:none}
 .side{width:236px;border-left:1px solid #d6d6d6;background:#fafafa;display:flex;flex-direction:column;flex-shrink:0}
 .sideh{padding:8px 10px;font-weight:600;border-bottom:1px solid #e2e2e2;color:#333;display:flex;justify-content:space-between}
@@ -222,7 +222,7 @@ button{cursor:pointer}
 .chip.good{background:#e7f6ec;border-color:#bfe5cb;color:#17663a}
 .chip.bad{background:#fdecec;border-color:#f3c4c4;color:#a32020}
 .gsp{width:14px}
-.gwrap{display:flex;gap:18px;align-items:flex-start}
+.gwrap{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
 .gmain{position:relative;min-width:0}
 .how{width:260px;flex-shrink:0;background:#fffbe6;border:1px solid #ecd98a;border-radius:4px;padding:10px 12px;line-height:1.6;box-shadow:2px 2px 0 rgba(0,0,0,.04)}
 .theme-word .how{background:#eef3fb;border-color:#b9cbe8}
@@ -801,11 +801,11 @@ function renderThumbs(force) {
   thumbKey = k;
   if (boss) {
     $('#thumbs').innerHTML = J.ppt.thumbs.map((t, i) => `<div class="thumb${i === 7 ? ' on' : ''}" data-n="${i + 1}"><b>${esc(t)}</b><i style="width:${50 + rnd(40)}%"></i><i style="width:${40 + rnd(50)}%"></i><i style="width:${30 + rnd(40)}%"></i>${i % 3 === 1 ? `<div class="bars">${[1, 2, 3, 4].map(() => `<span style="height:${6 + rnd(16)}px"></span>`).join('')}</div>` : ''}</div>`).join('');
-    $('#pnotes').innerHTML = `<b>슬라이드 노트</b>${esc(J.ppt.notes)}`;
+    $('#pnotes').innerHTML = `<span class="nl">슬라이드 노트</span>${esc(J.ppt.notes)}`;
   } else {
     $('#thumbs').innerHTML = GAMES.map((g, i) => `<div class="thumb" data-g="${g.key}" data-n="${i + 1}"><b>${g.label}</b>${g.real ? esc(g.real) : '업무 도구 목록'}<i style="width:70%"></i><i style="width:50%"></i></div>`).join('');
     const g = S && G(S.game);
-    $('#pnotes').innerHTML = `<b>슬라이드 노트</b>${g && g.how ? g.how.map((x, i) => `${i + 1}. ${x}`).join('<br>') : 'Tab 두 번 = 업무 화면 · 리본의 업무 도구에서 게임 선택'}`;
+    $('#pnotes').innerHTML = `<span class="nl">슬라이드 노트</span>${g && g.how ? g.how.map((x, i) => `${i + 1}. ${x}`).join('<br>') : 'Tab 두 번 = 업무 화면 · 리본의 업무 도구에서 게임 선택'}`;
   }
 }
 
@@ -929,13 +929,18 @@ BUILD.hunt = () => {
   };
 };
 UPDATE.hunt = () => {
-  const g = S.g, W = 62, H = 42;
+  const g = S.g;
   const board = $('#hb');
+  if (!board.dataset.w) {
+    const avail = stage().clientWidth - 260 - 18 - 24;
+    board.dataset.w = Math.max(44, Math.min(62, Math.floor(avail / g.cols)));
+  }
+  const W = +board.dataset.w, H = Math.round(W * 0.68), k = W / 62;
   board.style.width = g.cols * W + 20 + 'px'; board.style.height = g.rows * H + 16 + 'px';
   const iSeek = g.seeker === myId && g.phase === 'seek', iCall = g.phase === 'call' && g.caller === myId;
   board.className = 'hboard' + (iSeek ? '' : iCall ? ' callmode' : ' dim');
   if (board.children.length !== g.cells.length) {
-    board.innerHTML = g.cells.map((c, i) => `<span class="hn" data-i="${i}" style="left:${10 + c.c * W + W / 2 + c.jx}px;top:${8 + c.r * H + H / 2 + c.jy}px;font-size:${c.size}px;transform:translate(-50%,-50%) rotate(${c.rot}deg)">${c.n}</span>`).join('');
+    board.innerHTML = g.cells.map((c, i) => `<span class="hn" data-i="${i}" style="left:${10 + c.c * W + W / 2 + c.jx * k}px;top:${8 + c.r * H + H / 2 + c.jy * k}px;font-size:${Math.round(c.size * Math.max(.8, k))}px;transform:translate(-50%,-50%) rotate(${c.rot}deg)">${c.n}</span>`).join('');
   }
   g.cells.forEach((c, i) => {
     const el = board.children[i];
