@@ -4,13 +4,13 @@
   else root.Logic = factory();
 })(this, function () {
   const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c', '#0891b2', '#ca8a04', '#db2777'];
-  const GAME_KEYS = ['hunt', 'potato', 'mines', 'typing', 'numbers', 'apple', 'quiz'];
+  const GAME_KEYS = ['hunt', 'potato', 'mines', 'typing', 'numbers', 'apple', 'quiz', 'beard', 'dodge', 'tray'];
   const RANKS = [[0, '인턴'], [100, '사원'], [250, '주임'], [500, '대리'], [900, '과장'], [1500, '차장'], [2400, '부장'],
     [3600, '이사'], [5000, '상무'], [7000, '전무'], [10000, '사장']];
   const STAMPS = {
     first: '첫 결재', hunt_win: '숫자 찾기 승리', potato_win: '폭탄 회피 달인', mines_safe: '무사고 점검',
     mines_hard: '고급 셀 점검', typing_boss: '팀장님 호출 처리', typing_combo: '20연속 교정', numbers_hard: '고급 순번 검수',
-    apple_big: '대량 결재', quiz_perfect: '교육 만점', all: '전 업무 경험'
+    apple_big: '대량 결재', quiz_perfect: '교육 만점', beard_clean: '깔끔한 면도', dodge_60: '주말 사수 60초', tray_10: '식판 10개', all: '전 업무 경험'
   };
   const WORDS = ['보고서', '결재', '회의록', '야근', '연차', '출장', '엑셀', '피벗', '매크로', '주간회의', '품의서', '기안',
     '결산', '예산', '실적', 'KPI', 'OKR', '팀장님', '퇴근', '점심', '법인카드', '워크샵', '인사평가', '이메일',
@@ -19,6 +19,8 @@
     '반차', '재택', '화상회의', '메신저', '부재중', '외근', '협조전', '공문', '결재선', '전결', '시말서', '견적서', '세금계산서'];
   const HEAL = ['칼퇴', '월급날', '성과급', '불금'];
   const BOSS = ['내일까지 가능하죠', '잠깐 얘기 좀 할까', '이거 급한 건데요', '회의 하나만 더 잡죠', '주말에 시간 돼요'];
+  const KAKAO = ['주말에 시간 돼요?', '토요일에 잠깐만', '일요일 오전 어때요?', '이번 주말 출근 가능?', '급한 건 아닌데…', '연락 주세요 ㅎㅎ', '자료 하나만 봐줘요', '혹시 내일 나와요?'];
+  const DISH = ['🍚', '🥬', '🫘', '🍤', '🥕', '🌽'];
   const QUIZ = [
     ['엑셀에서 오늘 날짜를 바로 입력하는 단축키는?', ['Ctrl + ;', 'Ctrl + Shift + ;', 'Ctrl + D', 'Alt + =']],
     ['엑셀 자동 합계(SUM) 단축키는?', ['Alt + =', 'Ctrl + S', 'Ctrl + Shift + L', 'F4']],
@@ -151,6 +153,26 @@
         const rows = 10, cols = 17, dur = [150, 120, 90][lv];
         room.g = Object.assign(G, { rows, cols, score: 0, combo: 0, lastClear: 0, endsAt: now + dur * 1000, cursors: {},
           cells: Array.from({ length: rows * cols }, () => ({ v: 1 + rnd(9), star: Math.random() < 0.05 ? 1 : 0, by: null })) });
+        break;
+      }
+      case 'beard': {
+        const n = [30, 40, 50][lv], hairs = [];
+        while (hairs.length < n) {
+          const x = 150 + (Math.random() * 2 - 1) * 92, y = 212 + (Math.random() * 2 - 1) * 52;
+          if (((x - 150) / 95) ** 2 + ((y - 214) / 56) ** 2 > 1) continue;
+          if (Math.abs(x - 150) < 26 && Math.abs(y - 206) < 11) continue; // 입 자리
+          if (hairs.some(h => Math.hypot(h.x - x, h.y - y) < 11)) continue;
+          hairs.push({ x: Math.round(x), y: Math.round(y), a: Math.round((x - 150) / 4 + rnd(16) - 8), len: 10 + rnd(8), gone: 0, by: null });
+        }
+        room.g = Object.assign(G, { hairs, d: 0, last: now, endsAt: now + [70, 60, 50][lv] * 1000, ouch: 0, decay: [32, 28, 24][lv] });
+        break;
+      }
+      case 'dodge':
+        room.g = Object.assign(G, { lives: 5, maxLives: 5, bubbles: [], nid: 1, next: now + 1200, pos: {}, inv: {}, shieldUntil: 0, hits: 0, speedMul: [0.8, 1, 1.25][lv] });
+        break;
+      case 'tray': {
+        room.g = Object.assign(G, { trays: [], nid: 1, cleared: 0, score: 0, endsAt: now + [90, 75, 60][lv] * 1000 });
+        room.g.trays = [newTray(room.g, now), newTray(room.g, now)];
         break;
       }
       case 'quiz': {
@@ -295,6 +317,30 @@
     if (correct) { g.streak++; g.score++; } else g.streak = 0;
     g.last = { counts, correct, streak: g.streak };
     g.phase = 'reveal'; g.revealUntil = now + 3500;
+  }
+
+  // ───────── 상사의 수염 ─────────
+  function beardDecay(g, now) { g.d = Math.max(0, g.d - g.decay * (now - g.last) / 1000); g.last = now; }
+  function beardEnd(room, g, now, win) {
+    g.status = win ? 'win' : 'lose'; g.endAt = now;
+    if (win) {
+      const t = secs(g.startAt, now); recMin(room, 'beard' + g.lv, t);
+      sys(room, `🪒 수염 정리 완료! ${t}초 · 아야 ${g.ouch}번`);
+      if (!g.ouch) stamp(room, 'beard_clean');
+      clear(room, 'beard', [40, 70, 110][g.lv] - g.ouch * 5, '상사의 수염');
+    } else sys(room, g.d >= 100 ? '😡 상사가 깼습니다! 수염 뽑기 실패' : '⏱ 시간 초과 — 수염이 남았어요');
+  }
+
+  // ───────── 점심시간 사수 ─────────
+  function newTray(g, now) {
+    const n = Math.min(14, 6 + Math.floor(g.cleared / 2));
+    const stains = [];
+    for (let k = 0; k < n; k++) {
+      const r = Math.random();
+      const kind = r < 0.18 ? 'sticky' : r < 0.32 ? 'soup' : 'n';
+      stains.push({ id: g.nid++, x: 8 + rnd(84), y: 10 + rnd(78), kind, hp: kind === 'sticky' ? 3 : 1, e: DISH[rnd(DISH.length)], born: now, spread: 0 });
+    }
+    return { id: g.nid++, stains };
   }
 
   // ───────── 행동 처리 ─────────
@@ -467,6 +513,68 @@
         return { changed: true, res: 'hit' };
       }
 
+      // 상사의 수염
+      case 'beard:pull': {
+        const h = g.hairs[i];
+        if (!h || h.gone) return no;
+        beardDecay(g, now);
+        h.gone = 1; h.by = id; p.score++;
+        let res = 'hit';
+        if (g.d >= 70) {
+          g.endsAt -= 5000; g.ouch++; g.d = Math.min(100, g.d + 30); res = 'ouch';
+          fx(room, 'boom', '아야! 너무 빨라요 — 시간 -5초');
+        } else g.d = Math.min(100, g.d + 20);
+        if (g.d >= 100) beardEnd(room, g, now, false);
+        else if (g.hairs.every(x => x.gone)) beardEnd(room, g, now, true);
+        return { changed: true, res };
+      }
+
+      // 부장님 주말은 힘들어요
+      case 'dodge:pos':
+        g.pos[id] = { x: Math.max(0, Math.min(100, +data.x || 0)), y: Math.max(0, Math.min(100, +data.y || 0)) };
+        return { changed: false };
+      case 'dodge:hit': {
+        const b = g.bubbles.find(x => x.id === (data.b | 0));
+        if (!b || b.hitBy.includes(id)) return no;
+        b.hitBy.push(id);
+        if (b.kind === 'umb') {
+          g.bubbles = g.bubbles.filter(x => x !== b);
+          g.shieldUntil = now + 5000;
+          fx(room, 'combo', `☂ ${p.name} 님이 우산 획득!`, { sub: '5초 동안 팀 전체 무적' });
+          return { changed: true, res: 'umb' };
+        }
+        if (now < g.shieldUntil || now < (g.inv[id] || 0)) return no;
+        g.lives--; g.hits++; g.inv[id] = now + 1200;
+        fx(room, 'boom', `${p.name} 님이 카톡에 맞았어요 (생명 ${g.lives})`);
+        if (g.lives <= 0) {
+          g.status = 'over'; g.endAt = now;
+          const t = secs(g.startAt, now); recMax(room, 'dodge' + g.lv, t);
+          sys(room, `📱 주말 사수 실패 — ${t}초 버텼어요`);
+          if (t >= 60) stamp(room, 'dodge_60');
+          clear(room, 'dodge', t * 1.5, '부장님 주말');
+        }
+        return { changed: true, res: 'hit' };
+      }
+
+      // 점심시간 사수
+      case 'tray:wipe': {
+        const tr = g.trays.find(t => t.id === (data.t | 0));
+        if (!tr) return no;
+        const st = tr.stains.find(x => x.id === (data.s | 0));
+        if (!st) return no;
+        st.hp--; p.score++;
+        if (st.hp > 0) return { changed: true, res: 'scrub' };
+        tr.stains = tr.stains.filter(x => x !== st);
+        if (!tr.stains.length) {
+          g.cleared++; g.score += 10;
+          if (g.cleared % 5 === 0) fx(room, 'combo', `식판 ${g.cleared}개 클리어!`);
+          if (g.cleared >= 10) stamp(room, 'tray_10');
+          g.trays[g.trays.indexOf(tr)] = newTray(g, now);
+          return { changed: true, res: 'clear' };
+        }
+        return { changed: true, res: 'hit' };
+      }
+
       // 퀴즈
       case 'quiz:vote': {
         if (g.phase !== 'ask') return no;
@@ -516,6 +624,38 @@
         sys(room, `⏱ 합계 맞추기 종료 — 팀 점수 ${g.score}`);
         clear(room, 'apple', g.score / 2, '합계 맞추기');
         return true;
+      case 'beard':
+        beardDecay(g, now);
+        if (now >= g.endsAt) beardEnd(room, g, now, false);
+        return true;
+      case 'dodge': {
+        const el = (now - g.startAt) / 1000;
+        const yOf = b => (now - b.t0) / 1000 * b.s - 8;
+        g.bubbles = g.bubbles.filter(b => yOf(b) < 112);
+        if (now >= g.next) {
+          const umb = Math.random() < 0.05;
+          g.bubbles.push({ id: g.nid++, kind: umb ? 'umb' : 'msg', text: umb ? '☂' : KAKAO[rnd(KAKAO.length)], x: 6 + rnd(88), w: umb ? 5 : 15 + rnd(8),
+            t0: now, s: (16 + el * 0.45 + rnd(10)) * g.speedMul, hitBy: [] });
+          g.next = now + Math.max(170, 950 - el * 9) / (1 + 0.3 * (pcount(room) - 1));
+        }
+        return true;
+      }
+      case 'tray': {
+        let ch = false;
+        g.trays.forEach(tr => tr.stains.forEach(st => {
+          if (st.kind === 'soup' && !st.spread && now - st.born > 5000) {
+            st.spread = 1; ch = true;
+            for (let k = 0; k < 2; k++) tr.stains.push({ id: g.nid++, x: Math.max(5, Math.min(95, st.x + rnd(24) - 12)), y: Math.max(8, Math.min(92, st.y + rnd(24) - 12)), kind: 'n', hp: 1, e: '🟤', born: now, spread: 1 });
+          }
+        }));
+        if (now >= g.endsAt) {
+          g.status = 'done'; g.endAt = g.endsAt; recMax(room, 'tray' + g.lv, g.cleared);
+          sys(room, `🍱 점심시간 종료 — 식판 ${g.cleared}개 클리어`);
+          clear(room, 'tray', g.cleared * 8, '점심시간 사수');
+          return true;
+        }
+        return ch;
+      }
       case 'quiz':
         if (g.phase === 'ask' && now >= g.deadline) { quizReveal(room, g, now); return true; }
         if (g.phase === 'reveal' && now >= g.revealUntil) {
@@ -575,6 +715,19 @@
           gv = Object.assign(base, { rows: g.rows, cols: g.cols, score: g.score, combo: g.combo, endsAt: g.endsAt,
             cursors: Object.entries(g.cursors).filter(([id]) => id !== me).map(([id, r]) => Object.assign({ color: col(id), name: nm(id) }, r)),
             cells: g.cells.map(c => ({ v: c.v, star: c.star, by: c.by ? col(c.by) : null })) });
+          break;
+        case 'beard':
+          gv = Object.assign(base, { d: Math.round(g.d), endsAt: g.endsAt, ouch: g.ouch, left: g.hairs.filter(h => !h.gone).length, total: g.hairs.length,
+            hairs: g.hairs.map(h => ({ x: h.x, y: h.y, a: h.a, len: h.len, gone: h.gone, by: h.by ? col(h.by) : null })) });
+          break;
+        case 'dodge':
+          gv = Object.assign(base, { lives: g.lives, maxLives: g.maxLives, shield: Math.max(0, g.shieldUntil - now), inv: Math.max(0, (g.inv[me] || 0) - now), hits: g.hits,
+            bubbles: g.bubbles.map(b => ({ id: b.id, kind: b.kind, text: b.text, x: b.x, w: b.w, t0: b.t0, s: b.s, mine: b.hitBy.includes(me) })),
+            others: Object.entries(g.pos).filter(([pid]) => pid !== me && room.players[pid]).map(([pid, q]) => ({ x: q.x, y: q.y, color: col(pid), name: nm(pid), inv: (g.inv[pid] || 0) > now })) });
+          break;
+        case 'tray':
+          gv = Object.assign(base, { cleared: g.cleared, score: g.score, endsAt: g.endsAt,
+            trays: g.trays.map(t => ({ id: t.id, stains: t.stains.map(st => ({ id: st.id, x: st.x, y: st.y, kind: st.kind, hp: st.hp, e: st.e, spread: st.spread, born: st.born })) })) });
           break;
         case 'quiz': {
           const q = g.qs[Math.min(g.qi, g.qs.length - 1)];
