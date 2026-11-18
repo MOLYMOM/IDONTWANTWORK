@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: wolru-office
+    runtime: node
+    plan: free
+    buildCommand: echo "no build"
+    startCommand: node server.js
+    healthCheckPath: /ping
+    envVars:
+      - key: SITE_URL
+        sync: false
+      - key: GOOGLE_SITE_VERIFICATION
+        sync: false
+      - key: NAVER_SITE_VERIFICATION
+        sync: false
